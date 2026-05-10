@@ -12,8 +12,10 @@ use util::raise_rlimit;
 
 use anyhow::{Result, anyhow};
 use aya::programs::XdpFlags;
+use std::collections::VecDeque;
 #[rustfmt::skip]
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::{select, signal};
@@ -24,6 +26,7 @@ use clap::Parser;
 
 use crate::context::ContextData;
 use crate::logger::base::Logger;
+use crate::watcher::base::{LogBuffer, Watcher};
 use crate::xdp::base::Xdp;
 
 #[tokio::main]
@@ -42,8 +45,17 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Create log buffer for watcher if necessary.
+    let logs_buff: Option<LogBuffer> = {
+        if opts.watch {
+            Some(Arc::new(Mutex::new(VecDeque::with_capacity(opts.backlog))))
+        } else {
+            None
+        }
+    };
+
     // Setup our logger.
-    let logger = Logger::new(opts.log_level);
+    let logger = Logger::new(opts.log_level, logs_buff.clone(), opts.backlog);
 
     // We need to retrieve the list of interfaces to attach to.
     let mut ifaces = opts.get_ifaces();
@@ -201,32 +213,53 @@ async fn main() -> Result<()> {
         "Rust XDP Stats loaded! Please use CTRL + C to exit..."
     );
 
-    // We need to calculate our interval (one second).
-    let mut interval = time::interval(Duration::from_millis(1000));
+    if ctx.opts.watch {
+        // Create wather
+        let mut watcher = match Watcher::new(ctx.clone(), logs_buff.clone()) {
+            Ok(w) => w,
+            Err(e) => {
+                error!(ctx.logger.read().await, "Failed to initialize watcher: {e}");
 
-    loop {
-        select! {
-            _ = interval.tick() => {
-                if ctx.opts.watch {
+                return Err(e);
+            }
+        };
 
-                } else {
-                    // Display stats pretty.
-                    let xdp_prog = ctx.xdp_prog.lock().await;
+        match watcher.run().await {
+            Ok(_) => {}
+            Err(e) => {
+                error!(ctx.logger.read().await, "Watcher encountered an error: {e}");
 
-                    match xdp_prog.stats_display_pretty(ctx.opts.per_sec, true) {
-                        Ok(_) => {},
-                        Err(e) => warn!(ctx.logger.read().await, "Failed to display stats: {e}"),
+                return Err(e);
+            }
+        }
+    } else {
+        // We need to calculate our interval (one second).
+        let mut interval = time::interval(Duration::from_millis(1000));
+
+        loop {
+            select! {
+                _ = interval.tick() => {
+                    if ctx.opts.watch {
+
+                    } else {
+                        // Display stats pretty.
+                        let mut xdp_prog = ctx.xdp_prog.lock().await;
+
+                        match xdp_prog.stats_display_pretty(ctx.opts.per_sec, true) {
+                            Ok(_) => {},
+                            Err(e) => warn!(ctx.logger.read().await, "Failed to display stats: {e}"),
+                        }
                     }
+
                 }
 
-            }
+                _ = signal::ctrl_c() => {
+                    info!(ctx.logger.read().await, "Found CTRL + C signal, exiting...");
 
-            _ = signal::ctrl_c() => {
-                info!(ctx.logger.read().await, "Found CTRL + C signal, exiting...");
+                    ctx.running.store(false, Ordering::Relaxed);
 
-                ctx.running.store(false, Ordering::Relaxed);
-
-                break;
+                    break;
+                }
             }
         }
     }

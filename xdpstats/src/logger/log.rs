@@ -13,5 +13,16 @@ impl LoggerBase {
 
         // Print basic log line to console
         println!("{}", line);
+
+        // If we have a buffer, push the log line to it.
+        if let Some(buffer) = &self.buffer {
+            let mut buf = buffer.lock().unwrap();
+
+            if buf.len() >= self.backlog {
+                buf.pop_front();
+            }
+
+            buf.push_back(line);
+        }
     }
 }

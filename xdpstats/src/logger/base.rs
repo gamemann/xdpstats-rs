@@ -1,16 +1,23 @@
-use serde::{Deserialize, Serialize};
+use crate::{logger::level::LogLevel, watcher::base::LogBuffer};
 
-use crate::logger::level::LogLevel;
+pub const BACKLOG_DEFAULT_SZ: usize = 200;
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Default)]
 pub struct LoggerBase {
     pub log_level: LogLevel,
+    pub buffer: Option<LogBuffer>,
+
+    pub backlog: usize,
 }
 
 pub type Logger = LoggerBase;
 
 impl LoggerBase {
-    pub fn new(log_level: LogLevel) -> Self {
-        Self { log_level }
+    pub fn new(log_level: LogLevel, buffer: Option<LogBuffer>, backlog: usize) -> Self {
+        Self {
+            log_level,
+            buffer,
+            backlog,
+        }
     }
 }

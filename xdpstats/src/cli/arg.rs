@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use crate::logger::level::LogLevel;
+use crate::logger::{base::BACKLOG_DEFAULT_SZ, level::LogLevel};
 
 #[derive(Debug, Parser, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -20,6 +20,14 @@ pub struct CliOpts {
         help = "Lists all available network interfaces and exits."
     )]
     pub list: bool,
+
+    #[arg(
+        short = 'B',
+        long = "backlog",
+        default_value_t = BACKLOG_DEFAULT_SZ,
+        help = "Maximum amount of logs to store in stdout buffer when using the watch mode."
+    )]
+    pub backlog: usize,
 
     #[arg(
         short = 'i',

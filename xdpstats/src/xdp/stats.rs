@@ -16,14 +16,14 @@ use crate::xdp::base::XdpBase;
 
 #[derive(Debug, Default)]
 pub struct StatEntry {
-    cur: StatVal,
-    prev: StatVal,
+    pub cur: StatVal,
+    pub prev: StatVal,
 }
 
 #[derive(Debug)]
 pub struct Stats {
     pub entry: HashMap<StatType, StatEntry>,
-    last_update: Instant,
+    pub last_update: Instant,
 }
 
 impl Default for Stats {
@@ -70,15 +70,50 @@ impl XdpBase {
     }
 
     pub fn stats_calc(&mut self, per_sec: bool) -> Result<()> {
-        let stat_types = StatType::ALL;
+        if per_sec {
+            let now = Instant::now();
+            let elapsed = (now - self.stats.last_update).as_secs_f64();
 
-        for stat in stat_types {
-            let stat_val = self
-                .stat_get(per_sec, stat.clone())
-                .map_err(|e| anyhow!("Failed to calculate stats for type: {:?}: {e}", stat))?;
+            if elapsed < 1.0 {
+                // Not enough time has passed, keep current values.
+                return Ok(());
+            }
 
-            if let Some(entry) = self.stats.entry.get_mut(stat) {
-                entry.cur = stat_val;
+            // Snapshot raw values for all stat types first.
+            let mut raws = HashMap::new();
+            for stat in StatType::ALL {
+                let raw = self
+                    .stat_get_raw(stat.clone())
+                    .map_err(|e| anyhow!("Failed to get raw stats: {e}"))?;
+                raws.insert(stat.clone(), raw);
+            }
+
+            // Now calculate deltas for all types using the same elapsed window.
+            for stat in StatType::ALL {
+                if let (Some(raw), Some(entry)) = (raws.get(stat), self.stats.entry.get_mut(stat)) {
+                    let delta_pkt = raw.pkt.saturating_sub(entry.prev.pkt);
+                    let delta_byt = raw.byt.saturating_sub(entry.prev.byt);
+
+                    entry.cur = StatVal {
+                        pkt: (delta_pkt as f64 / elapsed) as u64,
+                        byt: (delta_byt as f64 / elapsed) as u64,
+                    };
+
+                    entry.prev = *raw;
+                }
+            }
+
+            // Update timestamp once after all stats processed.
+            self.stats.last_update = now;
+        } else {
+            for stat in StatType::ALL {
+                let stat_val = self
+                    .stat_get_raw(stat.clone())
+                    .map_err(|e| anyhow!("Failed to calculate stats: {e}"))?;
+
+                if let Some(entry) = self.stats.entry.get_mut(stat) {
+                    entry.cur = stat_val;
+                }
             }
         }
 
@@ -87,7 +122,12 @@ impl XdpBase {
 
     pub fn stat_get(&mut self, per_sec: bool, stat_type: StatType) -> Result<StatVal> {
         if per_sec {
-            self.stat_get_by_sec(stat_type)
+            Ok(self
+                .stats
+                .entry
+                .get(&stat_type)
+                .map(|e| e.cur.clone())
+                .unwrap_or_default())
         } else {
             self.stat_get_raw(stat_type)
         }
@@ -115,50 +155,43 @@ impl XdpBase {
     }
 
     pub fn stat_get_by_sec(&mut self, stat_type: StatType) -> Result<StatVal> {
-        // Retrieve current stats.
         let stats_raw = self
             .stat_get_raw(stat_type.clone())
             .map_err(|e| anyhow!("Failed to get stats: {e}"))?;
 
         let now = Instant::now();
+        let elapsed = (now - self.stats.last_update).as_secs_f64();
 
-        let stats = &mut self.stats;
-
-        if now - stats.last_update > Duration::from_secs(1) {
-            // We need to reset previous stats to current and update the timestamp before returning the raw stats.
-            let cur = {
-                let mut cur = StatVal::default();
-
-                for stat_type_raw in StatType::ALL {
-                    if let Some(entry) = stats.entry.get_mut(stat_type_raw) {
-                        entry.prev = entry.cur.clone();
-
-                        // Check if this is the current stat.
-                        if stat_type == *stat_type_raw {
-                            cur = entry.cur.clone();
-                        }
-                    }
-                }
-
-                cur
-            };
-
-            stats.last_update = now;
-
-            return Ok(cur);
+        if elapsed < 1.0 {
+            return Ok(self
+                .stats
+                .entry
+                .get(&stat_type)
+                .map(|e| e.cur.clone())
+                .unwrap_or_default());
         }
 
-        let en = stats
+        let en = self
+            .stats
             .entry
             .get_mut(&stat_type)
-            .ok_or_else(|| anyhow!("Failed to get previous stats"))?;
+            .ok_or_else(|| anyhow!("Failed to get stats entry"))?;
 
-        let ret = get_stats_rel(stats_raw, en.prev);
+        // Calculate delta from last raw snapshot.
+        let delta_pkt = stats_raw.pkt.saturating_sub(en.prev.pkt);
+        let delta_byt = stats_raw.byt.saturating_sub(en.prev.byt);
 
-        // Update previous stats before returning
+        let pkt_per_sec = (delta_pkt as f64 / elapsed) as u64;
+        let byt_per_sec = (delta_byt as f64 / elapsed) as u64;
+
+        // Update prev to current raw and timestamp.
         en.prev = stats_raw;
+        self.stats.last_update = now;
 
-        Ok(ret)
+        Ok(StatVal {
+            pkt: pkt_per_sec,
+            byt: byt_per_sec,
+        })
     }
 
     pub fn get_all(&mut self, per_sec: bool) -> Result<HashMap<&StatType, StatVal>> {
@@ -174,65 +207,60 @@ impl XdpBase {
 
         Ok(all_stats)
     }
-    pub fn stats_display_pretty(&self, per_sec: bool, flush: bool) -> Result<()> {
-        let stat_matched = self
-            .stats
-            .entry
+
+    pub fn stats_display_pretty(&mut self, per_sec: bool, flush: bool) -> Result<()> {
+        let stats_full = self
+            .get_all(per_sec)
+            .map_err(|e| anyhow!("Failed to retrieve all stats for display: {e}"))?;
+
+        let stat_matched = stats_full
             .get(&StatType::MATCH)
             .ok_or_else(|| anyhow!("Failed to get MATCHED stats"))?;
 
         print!(
             "\r\x1b[1;34mMatched:\x1b[0m {} / {}  |  ",
-            format_pkt(stat_matched.cur.pkt as f64, per_sec),
-            format_byt(stat_matched.cur.byt as f64, per_sec)
+            format_pkt(stat_matched.pkt as f64, per_sec),
+            format_byt(stat_matched.byt as f64, per_sec)
         );
 
-        let stat_error = self
-            .stats
-            .entry
+        let stat_error = stats_full
             .get(&StatType::ERROR)
             .ok_or_else(|| anyhow!("Failed to get ERROR stats"))?;
 
         print!(
             "\x1b[31mError:\x1b[0m {} / {}  |  ",
-            format_pkt(stat_error.cur.pkt as f64, per_sec),
-            format_byt(stat_error.cur.byt as f64, per_sec)
+            format_pkt(stat_error.pkt as f64, per_sec),
+            format_byt(stat_error.byt as f64, per_sec)
         );
 
-        let stat_bad = self
-            .stats
-            .entry
+        let stat_bad = stats_full
             .get(&StatType::BAD)
             .ok_or_else(|| anyhow!("Failed to get BAD stats"))?;
 
         print!(
             "\x1b[1;33mBad:\x1b[0m {} / {}  |  ",
-            format_pkt(stat_bad.cur.pkt as f64, per_sec),
-            format_byt(stat_bad.cur.byt as f64, per_sec)
+            format_pkt(stat_bad.pkt as f64, per_sec),
+            format_byt(stat_bad.byt as f64, per_sec)
         );
 
-        let stat_drop = self
-            .stats
-            .entry
+        let stat_drop = stats_full
             .get(&StatType::DROP)
             .ok_or_else(|| anyhow!("Failed to get DROP stats"))?;
 
         print!(
             "\x1b[1;31mDropped:\x1b[0m {} / {}  |  ",
-            format_pkt(stat_drop.cur.pkt as f64, per_sec),
-            format_byt(stat_drop.cur.byt as f64, per_sec)
+            format_pkt(stat_drop.pkt as f64, per_sec),
+            format_byt(stat_drop.byt as f64, per_sec)
         );
 
-        let stat_pass = self
-            .stats
-            .entry
+        let stat_pass = stats_full
             .get(&StatType::PASS)
             .ok_or_else(|| anyhow!("Failed to get PASS stats"))?;
 
         print!(
             "\x1b[1;32mPassed:\x1b[0m {} / {}  |  ",
-            format_pkt(stat_pass.cur.pkt as f64, per_sec),
-            format_byt(stat_pass.cur.byt as f64, per_sec)
+            format_pkt(stat_pass.pkt as f64, per_sec),
+            format_byt(stat_pass.byt as f64, per_sec)
         );
 
         if flush {
