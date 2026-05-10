@@ -1,0 +1,25 @@
+[package]
+name = "xdpstats-ebpf"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+xdpstats-common = { path = "../xdpstats-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+network-types = "0.1.0"
+aya-ebpf-bindings = "0.1.2"
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "xdpstats"
+path = "src/main.rs"
+
+[features]
+default = []
+afxdp = []
+tx = []
+tx_fib = []

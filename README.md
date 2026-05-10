@@ -2,7 +2,7 @@ A small project that utilizes an awesome Rust library called [Aya](https://aya-r
 
 ![Preview](./images/preview.gif)
 
-The XDP program simply increments counters for total packets and bytes using a per CPU array map and displays the total counters inside of the user-space program. There is a `matched` stat which is only incremented when packets arrive on UDP port [`TARGET_PORT`](https://github.com/gamemann/rust-xdp-stats/blob/main/rust-xdp-stats-common/src/config.rs#L4) (default: `8080`).
+The XDP program simply increments counters for total packets and bytes using a per CPU array map and displays the total counters inside of the user-space program. There is a `matched` stat which is only incremented when packets arrive on UDP port [`TARGET_PORT`](https://github.com/gamemann/xdpstats/blob/main/xdpstats-common/src/config.rs#L4) (default: `8080`).
 
 ⚠️ At this time, this project does not include all features from my original XDP Stats program in C. The following features are missing, but will be added in the future!
 
@@ -43,10 +43,10 @@ You can use git to clone the project.
 
 ```bash
 # Clone repository using Git
-git clone https://github.com/gamemann/rust-xdp-stats
+git clone https://github.com/gamemann/xdpstats
 
 # Change to project directory.
-cd rust-xdp-stats
+cd xdpstats
 ```
 
 You can then build and run the project using the following commands.
@@ -82,7 +82,7 @@ The following command line options are supported.
 | `-z --replace` | - | If set, passes the `REPLACE` flag when attaching the XDP program which replaces the XDP program if it is already loaded. For some reason this results in a crash. Otherwise it would be set by default. |
 
 ## Additional Configuration
-There are constants you may change in the [`rust-xdp-stats-common/src/config.rs`](https://github.com/gamemann/rust-xdp-stats/blob/main/rust-xdp-stats-common/src/config.rs) file. You will need to rebuild the tool after changing these values.
+There are constants you may change in the [`xdpstats-common/src/config.rs`](https://github.com/gamemann/xdpstats/blob/main/xdpstats-common/src/config.rs) file. You will need to rebuild the tool after changing these values.
 
 ```rust
 /* CONFIG OPTIONS */
@@ -98,7 +98,7 @@ pub const REDIRECT_FIB_LOOKUP: bool = false;
 
 // The path to the ELF file to load with eBPF.
 // Relative to $OUT_DIR env var, but you shouldn't need to change this.
-pub const PATH_ELF_FILE: &str = "rust-xdp-stats";
+pub const PATH_ELF_FILE: &str = "xdpstats";
 /* -------------------------------- */
 /* CONFIG OPTIONS END */
 ```

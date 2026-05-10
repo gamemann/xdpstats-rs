@@ -1,0 +1,19 @@
+[package]
+name = "xdpstats-common"
+version = "0.1.0"
+edition.workspace = true
+
+license.workspace = true
+
+[features]
+default = []
+user = ["aya"]
+afxdp = []
+tx = []
+tx_fib = []
+
+[dependencies]
+aya = { workspace = true, optional = true }
+
+[lib]
+path = "src/lib.rs"

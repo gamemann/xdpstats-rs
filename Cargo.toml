@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "rust-xdp-stats",
-    "rust-xdp-stats-common",
-    "rust-xdp-stats-ebpf",
+    "xdpstats",
+    "xdpstats-common",
+    "xdpstats-ebpf",
 ]
-default-members = ["rust-xdp-stats", "rust-xdp-stats-common"]
+default-members = ["xdpstats", "xdpstats-common"]
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
@@ -30,6 +30,6 @@ log = { version = "0.4.22", default-features = false }
 tokio = { version = "1.40.0", features = ["time"], default-features = false }
 which = { version = "6.0.0", default-features = false }
 
-[profile.release.package.rust-xdp-stats-ebpf]
+[profile.release.package.xdpstats-ebpf]
 debug = 2
 codegen-units = 1
