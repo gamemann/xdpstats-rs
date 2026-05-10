@@ -121,7 +121,7 @@ Here are settings for AF_XDP sockets.
 | `-p --poll-timeout` | `100` | The amount of time in milliseconds to wait when polling AF_XDP sockets. |
 
 ## 📝 Compile Time Configuration
-There are constants you may change in the [`xdpstats-common/src/config.rs`](https://github.com/gamemann/rust-xdp-stats/blob/main/xdpstats-common/src/config.rs) file. You will need to rebuild the tool after changing these values!
+There are constants you may change in the [`xdpstats-common/src/config.rs`](https://github.com/gamemann/xdpstats-rs/blob/main/xdpstats-common/src/config.rs) file. You will need to rebuild the tool after changing these values!
 
 ```rust
 /* CONFIG OPTIONS */
