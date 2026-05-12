@@ -19,7 +19,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tokio::{select, signal};
 
-use tokio::time::{self, interval};
+use tokio::time::{self, Instant, interval};
 
 use clap::Parser;
 
@@ -176,20 +176,17 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         let mut check_interval = interval(Duration::from_millis(300));
 
-        let mut elapsed = 0;
+        let start_time = Instant::now();
 
         loop {
             select! {
                 _ = check_interval.tick() => {
-                    if ctx_clone.opts.duration > 0 && elapsed >= ctx_clone.opts.duration {
-                        info!(ctx_clone.logger.read().await, "Specified duration of {} seconds has elapsed, exiting...", ctx_clone.opts.duration);
-
+                    if ctx_clone.opts.duration > 0 && start_time.elapsed().as_secs() >= ctx_clone.opts.duration {
                         ctx_clone.token.cancel();
 
                         break;
                     }
 
-                    elapsed += 1;
 
                     let mut xdp_prog = ctx_clone.xdp_prog.lock().await;
 
@@ -244,6 +241,11 @@ async fn main() -> Result<()> {
                     info!(ctx.logger.read().await, "Found CTRL + C signal, exiting...");
 
                     ctx.token.cancel();
+
+                    break;
+                }
+                _ = ctx.token.cancelled() => {
+                    info!(ctx.logger.read().await, "Duration elapsed, exiting...");
 
                     break;
                 }
