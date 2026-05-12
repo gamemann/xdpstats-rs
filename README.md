@@ -20,9 +20,7 @@ You can display the counters in rate per second or as a total count as seen in t
 * Support for a **watch mode** that displays stats in a TUI and updates in real time (as seen in the demo above).
 
 ## 🚨 Experimental
-At this time, this project is still in **early development** and is not yet proven stable. I am still working on adding features and fixing bugs. The project is currently in a state where it is mostly functional, but there may be some issues that need to be resolved.
-
-With that said, AF_XDP support is currently not tested! This is something I will be testing at some point soon!
+This project is in **early development**. While the core features are functional, users may encounter bugs depending on specific configurations. If you find a bug or have a suggestion, please open an issue.
 
 ## ⚙️ Preparing
 I developed this project using Debian 13 and the following commands should prepare your environment to run this project. I'd recommend giving [this](https://aya-rs.dev/book/start/development.html) documentation a read as well!
