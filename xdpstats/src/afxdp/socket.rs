@@ -1,5 +1,5 @@
 use anyhow::{Context as AnyhowCtx, Result, anyhow};
-use std::{io::Write, num::NonZeroU32};
+use std::{hint, io::Write, num::NonZeroU32};
 use xdpstats_common::StatType;
 use xsk_rs::{
     CompQueue, FillQueue, FrameDesc, RxQueue, Socket, TxQueue, Umem,
@@ -111,7 +111,14 @@ impl XskUmem {
 }
 
 impl XskTxSocket {
-    /// Create a socket with its own dedicated UMEM.
+    /// Creates a new AF_XDP socket with the given configuration and optional shared UMEM.
+    ///
+    /// # Arguments
+    /// * `cfg` - The configuration to use when creating the socket.
+    /// * `shared_umem` - An optional shared UMEM instance to use for the socket.
+    ///
+    /// # Returns
+    /// A result containing the created socket or an error if the socket could not be created.
     pub fn new(cfg: XskTxConfig, shared_umem: Option<&XskUmem>) -> Result<Self> {
         let owned_umem;
 
@@ -181,6 +188,13 @@ impl XskTxSocket {
         })
     }
 
+    /// Internal function to build the bind flags for the socket based on the configuration.
+    ///
+    /// # Arguments
+    /// * `cfg` - The socket configuration to determine which flags to set.
+    ///
+    /// # Returns
+    /// The constructed `BindFlags` for the socket.
     fn build_bind_flags(cfg: &XskTxConfig) -> BindFlags {
         let mut flags = BindFlags::empty();
 
@@ -193,10 +207,21 @@ impl XskTxSocket {
         flags
     }
 
+    /// Internal function to build the libxdp flags for the socket.
+    ///
+    /// # Returns
+    /// The constructed `LibxdpFlags` for the socket.
     fn build_libxdp_flags() -> LibxdpFlags {
         LibxdpFlags::XSK_LIBXDP_FLAGS_INHIBIT_PROG_LOAD
     }
 
+    /// Internal function to build the xdp flags for the socket based on the configuration.
+    ///
+    /// # Arguments
+    /// * `cfg` - The socket configuration to determine which flags to set.
+    ///
+    /// # Returns
+    /// The constructed `XdpFlags` for the socket.
     fn build_xdp_flags(cfg: &XskTxConfig) -> XdpFlags {
         let mut flags = XdpFlags::empty();
 
@@ -209,6 +234,17 @@ impl XskTxSocket {
         flags
     }
 
+    /// Receives packets from the AF_XDP socket and processes them using the provided handler.
+    ///
+    /// # Arguments
+    /// * `poll_ms_timeout` - The timeout in milliseconds for polling the RX queue.
+    /// * `check_for_wakeup` - Whether to check if the socket needs to be woken up.
+    /// * `handler` - A closure that processes each received packet and returns an action.
+    /// * `ctx` - The shared context containing configuration and state for the application.
+    /// * `stats` - The statistics object to update with packet processing results.
+    ///
+    /// # Returns
+    /// The number of packets processed or an error if the operation fails.
     #[inline(always)]
     pub fn recv<F>(
         &mut self,
@@ -249,28 +285,22 @@ impl XskTxSocket {
 
             // Retrieve stats type based on the action and whether we are able to enqueue for TX if needed.
             let stat_type = match action {
-                Action::Tx => {
-                    match self.enqueue_tx(desc) {
-                        Ok(_) => StatType::MATCH,
-                        Err(e) => {
-                            // If we fail to enqueue for TX, we should still recycle the frame back to RX.
-                            self.rx_free.push(desc);
+                Action::Tx => match self.enqueue_tx(desc) {
+                    Ok(_) => StatType::MATCH,
+                    Err(e) => {
+                        warn!(
+                            ctx.logger.blocking_read(),
+                            "Failed to enqueue packet for TX: {}", e
+                        );
 
-                            warn!(
-                                ctx.logger.blocking_read(),
-                                "Failed to enqueue packet for TX: {}", e
-                            );
-
-                            StatType::DROP
-                        }
+                        StatType::DROP
                     }
-                }
-                Action::Drop => {
-                    self.rx_free.push(desc);
-
-                    StatType::MATCH
-                }
+                },
+                Action::Drop => StatType::MATCH,
             };
+
+            // Recycle the RX frame back into the free pool for reuse.
+            self.rx_free.push(desc);
 
             // Increment stats.
             match stats.inc(stat_type, pkt_len as u64) {
@@ -286,6 +316,13 @@ impl XskTxSocket {
         Ok(n)
     }
 
+    /// Sends a packet through the AF_XDP socket.
+    ///
+    /// # Arguments
+    /// * `pkt` - The packet data to send.
+    ///
+    /// # Returns
+    /// A result indicating success or failure.
     #[inline(always)]
     pub fn send(&mut self, pkt: &[u8]) -> Result<()> {
         // Drain the completion queue first if we're out of TX frames.
@@ -309,7 +346,13 @@ impl XskTxSocket {
         self.enqueue_tx(desc)
     }
 
-    /// Best-effort flush: wake the NIC driver and drain all outstanding completions.
+    /// Completes any outstanding TX operations, ensuring all packets are sent before returning.
+    ///
+    /// # Arguments
+    /// * `need_wakeup` - Whether to wake up the kernel after completing TX operations.
+    ///
+    /// # Returns
+    /// A result indicating success or failure.
     pub fn complete_tx(&mut self, need_wakeup: bool) -> Result<()> {
         if need_wakeup {
             self.tx_q.wakeup().ok();
@@ -317,13 +360,23 @@ impl XskTxSocket {
 
         while self.outstanding_tx > 0 {
             self.drain_cq();
+
             if self.outstanding_tx > 0 {
-                std::hint::spin_loop();
+                // We can try signaling to the kernel that this is a spin loop to potentially improve performance in high-throughput scenarios.
+                hint::spin_loop();
             }
         }
+
         Ok(())
     }
 
+    /// Internal function to enqueue a packet for transmission, handling the case where the TX ring is full.
+    ///
+    /// # Arguments
+    /// * `desc` - The frame descriptor of the packet to enqueue for transmission.
+    ///
+    /// # Returns
+    /// A result indicating success or failure of the enqueue operation.
     fn enqueue_tx(&mut self, desc: FrameDesc) -> Result<()> {
         loop {
             match unsafe { self.tx_q.produce_and_wakeup(&[desc]) } {
@@ -344,15 +397,23 @@ impl XskTxSocket {
         Ok(())
     }
 
+    /// Internal function to drain the completion queue, recycling completed TX frames back into the TX free pool.
     fn drain_cq(&mut self) {
         let mut scratch: Vec<FrameDesc> = vec![FrameDesc::default(); self.batch_size];
+
         let n = unsafe { self.cq.consume(&mut scratch[..]) };
+
         for d in scratch[..n].iter().copied() {
             self.tx_free.push(d);
         }
+
         self.outstanding_tx = self.outstanding_tx.saturating_sub(n as u32);
     }
 
+    /// Internal function to refill the fill queue with RX frames that have been processed and are ready to be reused.
+    ///
+    /// # Arguments
+    /// * `poll_ms_timeout` - The timeout in milliseconds for polling the fill queue when waking up.
     fn refill_fq(&mut self, poll_ms_timeout: i32) {
         if self.rx_free.is_empty() {
             return;
@@ -360,6 +421,7 @@ impl XskTxSocket {
 
         // Try to push everything back; loop until the ring accepts them all.
         let mut remaining = self.rx_free.len();
+
         while remaining > 0 {
             let n = unsafe {
                 let fd = self.rx_q.fd_mut();
@@ -367,7 +429,9 @@ impl XskTxSocket {
                     .produce_and_wakeup(&self.rx_free[..remaining], fd, poll_ms_timeout)
                     .unwrap_or(0)
             };
+
             remaining -= n;
+
             if n == 0 {
                 break; // ring is full, we'll retry next recv() call
             }
@@ -377,6 +441,10 @@ impl XskTxSocket {
         self.rx_free.drain(..self.rx_free.len() - leftover);
     }
 
+    /// Internal function to check if the fill queue needs to be woken up and perform the wakeup if necessary.
+    ///
+    /// # Arguments
+    /// * `poll_ms_timeout` - The timeout in milliseconds for polling the fill queue when waking up.
     fn maybe_wakeup_fq(&mut self, poll_ms_timeout: i32) {
         if self.fq.needs_wakeup() {
             let fd = self.rx_q.fd_mut();
