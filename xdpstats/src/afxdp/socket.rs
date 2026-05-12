@@ -98,13 +98,13 @@ impl XskUmem {
             .comp_queue_size(cq_size)
             .fill_queue_size(fq_size)
             .build()
-            .context("failed to build umem config")?;
+            .map_err(|e| anyhow!("failed to build umem config: {}", e))?;
 
         let frame_count =
             NonZeroU32::new(cfg.frame_count).context("frame count must be non-zero")?;
 
-        let (umem, descs) =
-            Umem::new(umem_config, frame_count, cfg.zero_copy).context("failed to create UMEM")?;
+        let (umem, descs) = Umem::new(umem_config, frame_count, cfg.zero_copy)
+            .map_err(|e| anyhow!("failed to create UMEM: {}", e))?;
 
         Ok(Self { umem, descs })
     }
@@ -240,11 +240,12 @@ impl XskTxSocket {
         let frames: Vec<FrameDesc> = self.rx_scratch[..n].iter().copied().collect();
 
         for desc in frames {
-            let pkt_bytes: Vec<u8> = unsafe { self.umem.data(&desc).contents().to_vec() };
+            let pkt_bytes: &[u8] = unsafe { self.umem.data(&desc).contents() };
 
             // Retrieve the action.
             // Dedicated handler function isn't needed, but it makes the code cleaner and this should set an example.
-            let action = handler(&pkt_bytes);
+            let pkt_len = pkt_bytes.len() as u64;
+            let action = handler(pkt_bytes);
 
             // Retrieve stats type based on the action and whether we are able to enqueue for TX if needed.
             let stat_type = match action {
@@ -267,12 +268,12 @@ impl XskTxSocket {
                 Action::Drop => {
                     self.rx_free.push(desc);
 
-                    StatType::DROP
+                    StatType::MATCH
                 }
             };
 
             // Increment stats.
-            match stats.inc(stat_type, pkt_bytes.len() as u64) {
+            match stats.inc(stat_type, pkt_len as u64) {
                 Ok(_) => {}
                 Err(e) => {
                     warn!(ctx.logger.blocking_read(), "Failed to increment stats: {e}");

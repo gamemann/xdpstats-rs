@@ -1,14 +1,16 @@
 use anyhow::{Result, anyhow, bail};
-use aya::maps::{MapData, PerCpuArray, PerCpuValues};
+use aya::maps::PerCpuValues;
 use xdpstats_common::{StatType, StatVal};
 
+use crate::xdp::stats::StatsGlobal;
+
 pub struct AfxdpStats {
-    pub map: PerCpuArray<MapData, StatVal>,
+    pub map: StatsGlobal,
     core_id: u32,
 }
 
 impl AfxdpStats {
-    pub fn new(map: PerCpuArray<MapData, StatVal>, core_id: u32) -> Self {
+    pub fn new(map: StatsGlobal, core_id: u32) -> Self {
         Self { map, core_id }
     }
 
@@ -19,6 +21,8 @@ impl AfxdpStats {
         // Retrieve current stats for the given type.
         let map = self
             .map
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock stats map: {}", e))?
             .get(&key, 0)
             .map_err(|e| anyhow!("Failed to get stats from map: {}", e))?;
 
@@ -41,7 +45,12 @@ impl AfxdpStats {
             .map_err(|e| anyhow!("Failed to reconstruct PerCpuValues: {}", e))?;
 
         // Now we must save the entry again.
-        match self.map.set(key, vals_updated, 0) {
+        match self
+            .map
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock stats map: {}", e))?
+            .set(key, vals_updated, 0)
+        {
             Ok(_) => (),
             Err(e) => bail!("Failed to update stats in map: {}", e),
         }

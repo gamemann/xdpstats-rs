@@ -46,14 +46,6 @@ pub struct CliOpts {
     pub duration: u64,
 
     #[arg(
-        short = 'a',
-        long = "afxdp",
-        default_value_t = false,
-        help = "Forwards and processes packets in AF_XDP sockets instead of the raw XDP program."
-    )]
-    pub afxdp: bool,
-
-    #[arg(
         short = 'n',
         long = "socks",
         default_value_t = 0,
@@ -120,7 +112,6 @@ pub struct CliOpts {
     #[arg(
         short = 'x',
         long = "zero-copy",
-        default_value_t = true,
         help = "If set, AF_XDP sockets will be configured to use zero-copy. This can reduce latency and CPU usage, but requires that the UMEM be pinned in memory and cannot be shared across multiple sockets."
     )]
     pub afxdp_zero_copy: bool,

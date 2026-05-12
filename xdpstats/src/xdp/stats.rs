@@ -1,3 +1,4 @@
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::{collections::HashMap, io};
 
@@ -13,6 +14,8 @@ use std::io::Write;
 
 use crate::util::{format_byt, format_pkt};
 use crate::xdp::base::XdpBase;
+
+pub type StatsGlobal = Arc<Mutex<PerCpuArray<MapData, StatVal>>>;
 
 #[derive(Debug, Default)]
 pub struct StatEntry {
@@ -42,10 +45,6 @@ impl XdpBase {
         // We need to insert an empty structure into the stats map.
         let stat_val = StatVal::default();
 
-        // We need to retrieve the map.
-        let mut stats_map = PerCpuArray::try_from(self.prog_bpf.map_mut("MAP_STATS").unwrap())
-            .map_err(|e| anyhow!("Failed to retrieve stats map: {e}"))?;
-
         // We need to iterate over all stat types and insert the empty structure for each type.
         for stat_type in StatType::ALL {
             let stat_key = stat_type.clone().into();
@@ -53,12 +52,16 @@ impl XdpBase {
             // Insert into the BPF map itself.
             let stat_vals = PerCpuValues::try_from(vec![stat_val; cpu_cnt])?;
 
-            stats_map.set(stat_key, stat_vals, 0).map_err(|e| {
-                anyhow!(
-                    "Failed to initialize stats map for type: {:?}: {e}",
-                    stat_type
-                )
-            })?;
+            self.stats_map
+                .lock()
+                .map_err(|e| anyhow!("Failed to lock stats map: {e}"))?
+                .set(stat_key, stat_vals, 0)
+                .map_err(|e| {
+                    anyhow!(
+                        "Failed to initialize stats map for type: {:?}: {e}",
+                        stat_type
+                    )
+                })?;
 
             // We'll also stuff our hash map now -_O_-
             let stat_entry = StatEntry::default();
@@ -136,13 +139,12 @@ impl XdpBase {
     pub fn stat_get_raw(&mut self, stat_type: StatType) -> Result<StatVal> {
         let stats_key = stat_type as u32;
 
-        let stats_map: PerCpuArray<&mut MapData, StatVal> =
-            PerCpuArray::try_from(self.prog_bpf.map_mut("MAP_STATS").unwrap())
-                .map_err(|e| anyhow!("Failed to retrieve stats map: {e}"))?;
-
         let mut ret = StatVal::default();
 
-        let stats = stats_map
+        let stats = self
+            .stats_map
+            .lock()
+            .map_err(|e| anyhow!("Failed to lock stats map: {e}"))?
             .get(&stats_key, 0)
             .map_err(|e| anyhow!("Failed to get stats from map: {e}"))?;
 

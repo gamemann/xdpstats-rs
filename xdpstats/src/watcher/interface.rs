@@ -54,7 +54,7 @@ const STATS: [StatMeta; 5] = [
 impl Watcher {
     pub async fn interface_start(&mut self) -> Result<()> {
         loop {
-            if !self.ctx.running.load(Ordering::Relaxed) {
+            if self.ctx.token.is_cancelled() {
                 break;
             }
 
@@ -63,7 +63,8 @@ impl Watcher {
                 if let Event::Key(key) = event::read()? {
                     match key.code {
                         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            self.ctx.running.store(false, Ordering::Relaxed);
+                            self.ctx.token.cancel();
+
                             break;
                         }
                         KeyCode::Char('1') => self.view_mode = ViewMode::Packets,

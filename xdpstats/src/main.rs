@@ -29,6 +29,8 @@ use crate::logger::base::Logger;
 use crate::watcher::base::{LogBuffer, Watcher};
 use crate::xdp::base::Xdp;
 
+use tokio_util::sync::CancellationToken;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Let's parse our CLI options first and extract the input.
@@ -151,29 +153,24 @@ async fn main() -> Result<()> {
         Err(e) => warn!(logger, "Failed to insert first stats entry value: {e}"),
     }
 
-    // We want to create an atomic bool for signals.
-    let running = Arc::new(AtomicBool::new(true));
-
     // Create context and move what we need into it.
-    let ctx = ContextData::new(opts, xdp_prog, running, logger);
+    let ctx = ContextData::new(opts, xdp_prog, logger);
 
     // Spawn AF_XDP sockets if we're using the feature.
     #[cfg(feature = "afxdp")]
     {
-        tokio::spawn(async move {
-            let mut xdp_prog = ctx.xdp_prog.lock().await;
+        use crate::afxdp::init::setup_sockets;
 
-            match setup_sockets(&ctx.opts, &mut xdp_prog).await {
-                Ok(_) => info!(
-                    ctx.logger.read().await,
-                    "Successfully set up AF_XDP sockets"
-                ),
-                Err(e) => warn!(
-                    ctx.logger.read().await,
-                    "Failed to set up AF_XDP sockets: {e}"
-                ),
-            }
-        });
+        match setup_sockets(ctx.clone()).await {
+            Ok(_) => info!(
+                ctx.logger.read().await,
+                "Successfully set up AF_XDP sockets"
+            ),
+            Err(e) => warn!(
+                ctx.logger.read().await,
+                "Failed to set up AF_XDP sockets: {e}"
+            ),
+        }
     }
 
     // Spawn a task to calculate stats every second and check for duration.
@@ -190,7 +187,7 @@ async fn main() -> Result<()> {
                     if ctx_clone.opts.duration > 0 && elapsed >= ctx_clone.opts.duration {
                         info!(ctx_clone.logger.read().await, "Specified duration of {} seconds has elapsed, exiting...", ctx_clone.opts.duration);
 
-                        ctx_clone.running.store(false, Ordering::Relaxed);
+                        ctx_clone.token.cancel();
 
                         break;
                     }
@@ -239,24 +236,17 @@ async fn main() -> Result<()> {
         loop {
             select! {
                 _ = interval.tick() => {
-                    if ctx.opts.watch {
-
-                    } else {
-                        // Display stats pretty.
-                        let mut xdp_prog = ctx.xdp_prog.lock().await;
-
-                        match xdp_prog.stats_display_pretty(ctx.opts.per_sec, true) {
+                    {
+                        match ctx.xdp_prog.lock().await.stats_display_pretty(ctx.opts.per_sec, true) {
                             Ok(_) => {},
                             Err(e) => warn!(ctx.logger.read().await, "Failed to display stats: {e}"),
                         }
                     }
-
-                }
-
+                },
                 _ = signal::ctrl_c() => {
                     info!(ctx.logger.read().await, "Found CTRL + C signal, exiting...");
 
-                    ctx.running.store(false, Ordering::Relaxed);
+                    ctx.token.cancel();
 
                     break;
                 }

@@ -62,17 +62,17 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 [[package]]
 name = "aya"
 version = "0.13.2"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "assert_matches",
  "aya-obj",
  "bitflags 2.11.1",
- "bytes",
- "hashbrown 0.17.0",
+ "hashbrown 0.17.1",
  "libc",
  "log",
  "object",
  "once_cell",
+ "scopeguard",
  "thiserror 2.0.18",
 ]
 
@@ -89,7 +89,7 @@ dependencies = [
 [[package]]
 name = "aya-build"
 version = "0.1.3"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -100,7 +100,7 @@ dependencies = [
 [[package]]
 name = "aya-ebpf"
 version = "0.1.2"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "aya-build 0.1.3 (git+https://github.com/aya-rs/aya)",
  "aya-ebpf-bindings 0.1.2 (git+https://github.com/aya-rs/aya)",
@@ -122,7 +122,7 @@ dependencies = [
 [[package]]
 name = "aya-ebpf-bindings"
 version = "0.1.2"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "aya-build 0.1.3 (git+https://github.com/aya-rs/aya)",
  "aya-ebpf-cty 0.2.3 (git+https://github.com/aya-rs/aya)",
@@ -140,7 +140,7 @@ dependencies = [
 [[package]]
 name = "aya-ebpf-cty"
 version = "0.2.3"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "aya-build 0.1.3 (git+https://github.com/aya-rs/aya)",
 ]
@@ -148,7 +148,7 @@ dependencies = [
 [[package]]
 name = "aya-ebpf-macros"
 version = "0.1.2"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "proc-macro2",
  "proc-macro2-diagnostics",
@@ -159,7 +159,7 @@ dependencies = [
 [[package]]
 name = "aya-log"
 version = "0.2.2"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "aya",
  "aya-log-common",
@@ -170,7 +170,7 @@ dependencies = [
 [[package]]
 name = "aya-log-common"
 version = "0.1.16"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "num_enum",
 ]
@@ -178,7 +178,7 @@ dependencies = [
 [[package]]
 name = "aya-log-ebpf"
 version = "0.1.2"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "aya-ebpf",
  "aya-log-common",
@@ -188,7 +188,7 @@ dependencies = [
 [[package]]
 name = "aya-log-ebpf-macros"
 version = "0.1.1"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "aya-log-common",
  "aya-log-parser",
@@ -200,7 +200,7 @@ dependencies = [
 [[package]]
 name = "aya-log-parser"
 version = "0.1.14"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "aya-log-common",
 ]
@@ -208,10 +208,9 @@ dependencies = [
 [[package]]
 name = "aya-obj"
 version = "0.2.2"
-source = "git+https://github.com/aya-rs/aya#55113f8db78177fbd2f8ea80c34b0feac1c88360"
+source = "git+https://github.com/aya-rs/aya#eac84c3e517418353fdd137ba35269f0697ba4d5"
 dependencies = [
  "bytes",
- "hashbrown 0.17.0",
  "log",
  "object",
  "thiserror 2.0.18",
@@ -341,9 +340,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.61"
+version = "1.2.62"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d16d90359e986641506914ba71350897565610e87ce0ad9e6f28569db3dd5c6d"
+checksum = "a1dce859f0832a7d088c4f1119888ab94ef4b5d6795d1ce05afb7fe159d79f98"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -528,12 +527,36 @@ dependencies = [
 
 [[package]]
 name = "darling"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cdf337090841a411e2a7f3deb9187445851f91b309c0c0a29e05f74a00a48c0"
+dependencies = [
+ "darling_core 0.21.3",
+ "darling_macro 0.21.3",
+]
+
+[[package]]
+name = "darling"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25ae13da2f202d56bd7f91c25fba009e7717a1e4a1cc98a76d844b65ae912e9d"
 dependencies = [
- "darling_core",
- "darling_macro",
+ "darling_core 0.23.0",
+ "darling_macro 0.23.0",
+]
+
+[[package]]
+name = "darling_core"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1247195ecd7e3c85f83c8d2a366e4210d588e802133e1e355180a9870b517ea4"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn 2.0.117",
 ]
 
 [[package]]
@@ -551,11 +574,22 @@ dependencies = [
 
 [[package]]
 name = "darling_macro"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
+dependencies = [
+ "darling_core 0.21.3",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "darling_macro"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac3984ec7bd6cfa798e62b4a642426a5be0e68f9401cfc2a01e3fa9ea2fcdb8d"
 dependencies = [
- "darling_core",
+ "darling_core 0.23.0",
  "quote",
  "syn 2.0.117",
 ]
@@ -730,6 +764,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
 
 [[package]]
+name = "futures-sink"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c39754e157331b013978ec91992bde1ac089843443c49cbc7f46150b0fad0893"
+
+[[package]]
 name = "futures-task"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -810,9 +850,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.17.0"
+version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f467dd6dccf739c208452f8014c75c18bb8301b050ad1cfb27153803edb0f51"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 dependencies = [
  "equivalent",
  "foldhash 0.2.0",
@@ -823,6 +863,12 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
+name = "hermit-abi"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
 
 [[package]]
 name = "hex"
@@ -882,7 +928,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d466e9454f08e4a911e14806c24e16fba1b4c121d1ea474396f396069cf949d9"
 dependencies = [
  "equivalent",
- "hashbrown 0.17.0",
+ "hashbrown 0.17.1",
  "serde",
  "serde_core",
 ]
@@ -902,7 +948,7 @@ version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5eb2d60ef19920a3a9193c3e371f726ec1dafc045dac788d0fb3704272458971"
 dependencies = [
- "darling",
+ "darling 0.23.0",
  "indoc",
  "proc-macro2",
  "quote",
@@ -944,9 +990,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "js-sys"
-version = "0.3.97"
+version = "0.3.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1840c94c045fbcf8ba2812c95db44499f7c64910a912551aaaa541decebcacf"
+checksum = "67df7112613f8bfd9150013a0314e196f4800d3201ae742489d999db2f979f08"
 dependencies = [
  "cfg-if",
  "futures-util",
@@ -1123,11 +1169,13 @@ dependencies = [
 
 [[package]]
 name = "network-types"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f06f1863cb5565864300c6bfb012312969908878d2ca5881eaf0bbdb8b519c23"
+checksum = "5b2a639fbb002e28c2db28571f31aacc167fe7b36b33eaf650412b8d5efff26a"
 dependencies = [
- "memoffset",
+ "num-derive",
+ "num-traits",
+ "wincode",
 ]
 
 [[package]]
@@ -1198,6 +1246,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_cpus"
+version = "1.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91df4bbde75afed763b708b7eee1e8e7651e02d97f6d5dd763e89367e957b23b"
+dependencies = [
+ "hermit-abi",
+ "libc",
+]
+
+[[package]]
 name = "num_enum"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1234,7 +1292,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e5a6c098c7a3b6547378093f5cc30bc54fd361ce711e05293a5cc589562739b"
 dependencies = [
  "crc32fast",
- "hashbrown 0.17.0",
+ "hashbrown 0.17.1",
  "indexmap",
  "memchr",
 ]
@@ -1276,6 +1334,12 @@ dependencies = [
  "smallvec",
  "windows-link",
 ]
+
+[[package]]
+name = "pastey"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5a797f0e07bdf071d15742978fc3128ec6c22891c31a3a931513263904c982a"
 
 [[package]]
 name = "pest"
@@ -1839,9 +1903,9 @@ dependencies = [
 
 [[package]]
 name = "siphasher"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2aa850e253778c88a04c3d7323b043aeda9d3e30d5971937c1855769763678e"
+checksum = "8ee5873ec9cce0195efcb7a4e9507a04cd49aec9c83d0389df45b1ef7ba2e649"
 
 [[package]]
 name = "slab"
@@ -2046,9 +2110,9 @@ checksum = "7694e1cfe791f8d31026952abf09c69ca6f6fa4e1a1229e18988f06a04a12dca"
 
 [[package]]
 name = "tokio"
-version = "1.52.1"
+version = "1.52.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b67dee974fe86fd92cc45b7a95fdd2f99a36a6d7b0d431a231178d3d670bbcc6"
+checksum = "8fc7f01b389ac15039e4dc9531aa973a135d7a4135281b12d7c1bc79fd57fffe"
 dependencies = [
  "libc",
  "mio",
@@ -2068,6 +2132,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "tokio-util"
+version = "0.7.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ae9cec805b01e8fc3fd2fe289f89149a9b66dd16786abd8b19cfa7b48cb0098"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]
@@ -2176,9 +2253,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.120"
+version = "0.2.121"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df52b6d9b87e0c74c9edfa1eb2d9bf85e5d63515474513aa50fa181b3c4f5db1"
+checksum = "49ace1d07c165b0864824eee619580c4689389afa9dc9ed3a4c75040d82e6790"
 dependencies = [
  "cfg-if",
  "once_cell",
@@ -2189,9 +2266,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.120"
+version = "0.2.121"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78b1041f495fb322e64aca85f5756b2172e35cd459376e67f2a6c9dffcedb103"
+checksum = "8e68e6f4afd367a562002c05637acb8578ff2dea1943df76afb9e83d177c8578"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -2199,9 +2276,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.120"
+version = "0.2.121"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dcd0ff20416988a18ac686d4d4d0f6aae9ebf08a389ff5d29012b05af2a1b41"
+checksum = "d95a9ec35c64b2a7cb35d3fead40c4238d0940c86d107136999567a4703259f2"
 dependencies = [
  "bumpalo",
  "proc-macro2",
@@ -2212,9 +2289,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.120"
+version = "0.2.121"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49757b3c82ebf16c57d69365a142940b384176c24df52a087fb748e2085359ea"
+checksum = "c4e0100b01e9f0d03189a92b96772a1fb998639d981193d7dbab487302513441"
 dependencies = [
  "unicode-ident",
 ]
@@ -2367,6 +2444,31 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "wincode"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4c754f1fc41250f2f742a27ba0fcc9f73df1dec23f6878490770855d43c322d"
+dependencies = [
+ "pastey",
+ "proc-macro2",
+ "quote",
+ "thiserror 2.0.18",
+ "wincode-derive",
+]
+
+[[package]]
+name = "wincode-derive"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e070787599c7c067b89598cd3eda440cca1b69eda9e0ff7c725fc8679ce9eb4"
+dependencies = [
+ "darling 0.21.3",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
 
 [[package]]
 name = "windows-core"
@@ -2624,10 +2726,12 @@ dependencies = [
  "env_logger",
  "libc",
  "log",
+ "num_cpus",
  "pnet",
  "ratatui",
  "serde",
  "tokio",
+ "tokio-util",
  "xdpstats-common",
  "xdpstats-ebpf",
  "xsk-rs",
@@ -2638,6 +2742,7 @@ name = "xdpstats-common"
 version = "0.1.0"
 dependencies = [
  "aya",
+ "network-types",
 ]
 
 [[package]]
@@ -2647,6 +2752,7 @@ dependencies = [
  "aya-ebpf",
  "aya-ebpf-bindings 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "aya-log-ebpf",
+ "cfg-if",
  "network-types",
  "which 6.0.3",
  "xdpstats-common",

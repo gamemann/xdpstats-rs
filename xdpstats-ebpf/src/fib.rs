@@ -1,6 +1,9 @@
 use aya_ebpf::{
     EbpfContext,
-    bindings::{BPF_FIB_LKUP_RET_SUCCESS, xdp_action},
+    bindings::{
+        BPF_FIB_LKUP_RET_SUCCESS,
+        xdp_action::{self, XDP_DROP, XDP_TX},
+    },
 };
 use aya_ebpf_bindings::{
     bindings::{
@@ -24,8 +27,8 @@ pub fn do_fib_lookup(ctx: &Context, len: u16) -> u32 {
     let mut fib_lookup = bpf_fib_lookup_params {
         family: AF_INET,
         l4_protocol: unsafe { (*ctx.iph).proto as u8 },
-        sport: ctx.src_port,
-        dport: ctx.dst_port,
+        sport: ctx.proto.get_src_port().unwrap_or(0),
+        dport: ctx.proto.get_dst_port().unwrap_or(0),
         ifindex: ctx.xdp_ctx.ingress_ifindex() as u32,
         smac: unsafe { (*ctx.eth).src_addr },
         dmac: unsafe { (*ctx.eth).dst_addr },
@@ -44,7 +47,14 @@ pub fn do_fib_lookup(ctx: &Context, len: u16) -> u32 {
         __bindgen_anon_5: bpf_fib_lookup__bindgen_ty_5 { tbid: 0 },
     };
 
-    let lookup = unsafe { bpf_fib_lookup(ctx.xdp_ctx.as_ptr(), &mut fib_lookup, len as i32, 0) };
+    let lookup = unsafe {
+        bpf_fib_lookup(
+            ctx.xdp_ctx.as_ptr(),
+            &mut fib_lookup,
+            core::mem::size_of::<bpf_fib_lookup_params>() as i32,
+            0,
+        )
+    };
 
     // Check if the lookup was successful.
     if lookup == BPF_FIB_LKUP_RET_SUCCESS as i64 {
@@ -55,8 +65,8 @@ pub fn do_fib_lookup(ctx: &Context, len: u16) -> u32 {
             (*eth_mut).dst_addr = fib_lookup.dmac;
         }
 
-        return xdp_action::XDP_TX;
+        return XDP_TX;
     }
 
-    xdp_action::XDP_DROP
+    XDP_DROP
 }

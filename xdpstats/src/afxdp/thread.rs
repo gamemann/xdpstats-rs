@@ -1,4 +1,7 @@
-use std::{os::fd::AsRawFd, sync::atomic::Ordering};
+use std::{
+    os::fd::AsRawFd,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{Context as AnyhowContext, Result, anyhow};
 use aya::maps::{MapData, PerCpuArray, XskMap};
@@ -11,7 +14,7 @@ use crate::{
         stats::AfxdpStats,
     },
     context::Context,
-    warn,
+    debug, info, warn,
 };
 
 pub fn thread_process(
@@ -20,6 +23,11 @@ pub fn thread_process(
     shared_umem: Option<XskUmem>,
     iface: &str,
 ) -> Result<()> {
+    debug!(
+        ctx.logger.blocking_read(),
+        "Starting AF_XDP thread with ID {} on interface {}", thread_id, iface
+    );
+
     // Create AF_XDP socket config.
     let cfg = XskTxConfig {
         if_name: iface.to_string(),
@@ -38,13 +46,14 @@ pub fn thread_process(
     };
 
     // Create the socket now.
-    let mut sock = XskTxSocket::new(cfg, shared_umem.as_ref())?;
+    let mut sock = XskTxSocket::new(cfg, shared_umem.as_ref())
+        .map_err(|e| anyhow!("Failed to create AF_XDP socket: {e}"))?;
 
     // We need to retrieve the XSK map and update it with our socket FD.
     {
         let mut prog_lock = ctx.xdp_prog.blocking_lock();
 
-        let map_mut = match prog_lock.prog_bpf.map_mut("map_xsk") {
+        let map_mut = match prog_lock.prog_bpf.map_mut("MAP_XSK") {
             Some(map) => map,
             None => {
                 warn!(
@@ -76,32 +85,18 @@ pub fn thread_process(
         xsk_map
             .set(thread_id, fd, 0)
             .context("Failed to set socket FD in XSK map")?;
+
+        info!(
+            ctx.logger.blocking_read(),
+            "Successfully set socket FD {} in XSK map at index {}", fd, thread_id
+        );
     }
 
     // Now retrieve the stats map now to save some time in the packet processing loop.
-    let mut prog_lock = ctx.xdp_prog.blocking_lock();
-
-    let stats_map: PerCpuArray<MapData, StatVal> = {
-        let map = match prog_lock.prog_bpf.take_map("map_stats") {
-            Some(map) => map,
-            None => {
-                return Err(anyhow!("Failed to retrieve stats map from BPF program"));
-            }
-        };
-
-        match PerCpuArray::try_from(map) {
-            Ok(map) => map,
-            Err(e) => {
-                return Err(anyhow!("Failed to convert map to PerCpuArray: {e}"));
-            }
-        }
-    };
-
-    // Create AF_XDP stats structure.
-    let mut stats = AfxdpStats::new(stats_map, thread_id);
+    let mut stats = AfxdpStats::new(ctx.xdp_prog.blocking_lock().stats_map.clone(), thread_id);
 
     loop {
-        if !ctx.running.load(Ordering::Relaxed) {
+        if ctx.token.is_cancelled() {
             break;
         }
 

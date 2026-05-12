@@ -26,7 +26,6 @@ impl CliOpts {
         println!();
 
         println!("AF_XDP Options:");
-        println!("  Enabled: {}", self.afxdp);
         println!("  Batch Size: {}", self.afxdp_batch_size);
         println!("  Need Wakeup: {}", self.afxdp_need_wakeup);
         println!("  Zero Copy: {}", self.afxdp_zero_copy);

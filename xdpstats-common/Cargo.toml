@@ -14,6 +14,7 @@ tx_fib = []
 
 [dependencies]
 aya = { workspace = true, optional = true }
+network-types = "0.2.0"
 
 [lib]
 path = "src/lib.rs"
