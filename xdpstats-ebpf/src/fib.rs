@@ -20,6 +20,15 @@ use crate::ctx::Context;
 const AF_INET: u8 = 2;
 const AF_INET6: u8 = 10;
 
+/// Performs a FIB lookup for the given context and updates the Ethernet header with the new MAC addresses if the lookup is successful.
+///
+/// # Arguments
+/// * `ctx` - The context containing the packet information for the FIB lookup.
+/// * `len` - The total length of the packet for the FIB lookup.
+///
+/// # Returns
+/// * `XDP_TX` if the FIB lookup was successful and the Ethernet header was updated.
+/// * `XDP_DROP` if the FIB lookup failed.
 pub fn do_fib_lookup(ctx: &Context, len: u16) -> u32 {
     // Fill out the fib lookup parameters.
     // Take a look here for more info:

@@ -16,6 +16,14 @@ pub enum Protocol {
 }
 
 impl Protocol {
+    /// Initiates a new protocol based off of the provided protocol number and data pointer.
+    ///
+    /// # Arguments
+    /// * `proto` - The protocol number (e.g. TCP, UDP).
+    /// * `data` - A pointer to the start of the protocol header (e.g. TCP or UDP header).
+    ///
+    /// # Returns
+    /// A new `Protocol` enum instance with the appropriate type and data pointer.
     #[inline(always)]
     pub fn new(proto: u8, data: *const u8) -> Self {
         match proto {
@@ -25,6 +33,10 @@ impl Protocol {
         }
     }
 
+    /// Retrieves the source port from the protocol header if it is TCP or UDP.
+    ///
+    /// # Returns
+    /// An `Option<u16>` containing the source port if the protocol is TCP or UDP, or `None` if it is ICMP or an unsupported protocol.
     #[inline(always)]
     pub fn get_src_port(&self) -> Option<u16> {
         match self {
@@ -34,6 +46,10 @@ impl Protocol {
         }
     }
 
+    /// Retrieves the destination port from the protocol header if it is TCP or UDP.
+    ///
+    /// # Returns
+    /// An `Option<u16>` containing the destination port if the protocol is TCP or UDP, or `None` if it is ICMP or an unsupported protocol.
     #[inline(always)]
     pub fn get_dst_port(&self) -> Option<u16> {
         match self {
@@ -43,6 +59,7 @@ impl Protocol {
         }
     }
 
+    /// Swaps the source and destination ports in the protocol header if it is TCP or UDP.
     #[inline(always)]
     pub fn swap_ports(&self) {
         match self {
@@ -63,6 +80,11 @@ impl Protocol {
         }
     }
 
+    /// Calculates the new checksum for the protocol header after swapping IP addresses and updates it accordingly if the protocol is TCP or UDP.
+    ///
+    /// # Arguments
+    /// * `old_src_ip` - The old source IP address in host byte order.
+    /// * `old_dst_ip` - The old destination IP address in host byte order.
     #[inline(always)]
     pub fn calc_csum(&self, old_src_ip: u32, old_dst_ip: u32) {
         match self {
@@ -72,19 +94,24 @@ impl Protocol {
                 // Store old checksum.
                 let old_csum = u16::from_be_bytes(tcp.check);
 
-                // Update for src IP becoming dst IP
+                // Update source and destination swaps.
                 let csum = csum_update_u32(old_csum, old_src_ip, old_dst_ip);
-
-                // Update for dst IP becoming src IP
                 let csum = csum_update_u32(csum, old_dst_ip, old_src_ip);
 
+                // Update checksum.
                 tcp.check = u16::to_be_bytes(csum);
             },
             Protocol::Udp(udp) => unsafe {
                 let udp = &mut *(*udp as *mut UdpHdr);
+
+                // Store old checksum.
                 let old_csum = u16::from_be_bytes(udp.check);
+
+                // Update source and destination swaps.
                 let csum = csum_update_u32(old_csum, old_src_ip, old_dst_ip);
                 let csum = csum_update_u32(csum, old_dst_ip, old_src_ip);
+
+                // Update checksum.
                 udp.check = u16::to_be_bytes(csum);
             },
             _ => {}

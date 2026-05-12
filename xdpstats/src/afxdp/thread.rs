@@ -1,11 +1,7 @@
-use std::{
-    os::fd::AsRawFd,
-    sync::{Arc, Mutex},
-};
+use std::os::fd::AsRawFd;
 
 use anyhow::{Context as AnyhowContext, Result, anyhow};
-use aya::maps::{MapData, PerCpuArray, XskMap};
-use xdpstats_common::StatVal;
+use aya::maps::XskMap;
 
 use crate::{
     afxdp::{
@@ -17,6 +13,17 @@ use crate::{
     debug, info, warn,
 };
 
+/// The thread handler for the dedicated AF_XDP socket.
+///
+/// # Arguments
+/// * `thread_id` - The ID of the thread, used for indexing into the XSK map and stats map.
+/// * `ctx` - The shared context containing configuration and state for the application.
+/// * `shared_umem` - An optional shared UMEM instance to use for the sockets.
+/// * `iface` - The network interface to bind the AF_XDP socket to.
+///
+/// # Returns
+/// * `Ok(())` if the thread process completes successfully (e.g., on shutdown).
+/// * `Err(e)` if any error occurs during the setup or packet processing.
 pub fn thread_process(
     thread_id: u32,
     ctx: Context,

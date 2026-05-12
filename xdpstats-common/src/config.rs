@@ -3,7 +3,7 @@ use network_types::ip::IpProto;
 /* CONFIG OPTIONS */
 /* -------------------------------- */
 // The target protocol to match.
-// You may use IpProto::Tcp, IpProto:Icmp, etc.
+// You may use IpProto::Tcp, IpProto::Icmp, etc.
 pub const TARGET_PROTOCOL: u8 = IpProto::Udp as u8;
 
 // The target port to match packets on.

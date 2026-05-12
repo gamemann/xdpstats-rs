@@ -16,7 +16,6 @@ use std::collections::VecDeque;
 #[rustfmt::skip]
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::{select, signal};
 
@@ -28,8 +27,6 @@ use crate::context::ContextData;
 use crate::logger::base::Logger;
 use crate::watcher::base::{LogBuffer, Watcher};
 use crate::xdp::base::Xdp;
-
-use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
 async fn main() -> Result<()> {
