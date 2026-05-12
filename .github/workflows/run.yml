@@ -1,0 +1,44 @@
+name: Run
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run apt update
+      run: sudo apt update
+
+    - name: Install dependencies
+      run: sudo apt install -y git curl cmake pkg-config libssl-dev llvm-19-dev libclang-19-dev libpolly-19-dev
+
+    - name: Install Rust
+      run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+    - name: Install nightly toolchain with rust-src
+      run: |
+        source $HOME/.cargo/env
+        rustup toolchain install nightly --component rust-src
+
+    - name: Install bpf-linker
+      run: |
+        source $HOME/.cargo/env
+        cargo install bpf-linker
+
+    - name: Build
+      run: |
+        source $HOME/.cargo/env
+        cargo build --release
+
+    - name: Retrieve default network interface
+      run: echo "INTERFACE=$(ip route | awk '/default/ {print $5}')" >> $GITHUB_ENV
+
+    - name: Run xdpstats for 10 seconds
+      run: sudo -E $HOME/.cargo/bin/cargo run --release -- -i ${{ env.INTERFACE }} -d 10
