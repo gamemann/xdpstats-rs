@@ -1,3 +1,6 @@
+[![XDP Stats Build Workflow](https://github.com/gamemann/xdpstats-rs/actions/workflows/build.yml/badge.svg)](https://github.com/gamemann/xdpstats-rs/actions/workflows/build.yml) [![XDP Stats Run Workflow](https://github.com/gamemann/xdpstats-rs/actions/workflows/run.yml/badge.svg)](https://github.com/gamemann/xdpstats-rs/actions/workflows/run.yml)
+
+
 A tool that utilizes an awesome Rust library called [Aya](https://aya-rs.dev/book/) to deploy a simple XDP stats program. This tool increments counters for packets and bytes using a per CPU array map and displays the counters inside of the user-space program. There is a `matched` stat which is only incremented when packets arrive on a configured protocol (`TARGET_PROTO`, default: `UDP`) and port (`TARGET_PORT`, default: `8080`).
 
 ![Preview](./images/preview.gif)
@@ -26,7 +29,7 @@ I developed this project using Debian 13 and the following commands should prepa
 
 ```bash
 # Install required packages through apt.
-sudo apt install -y git curl cmake pkg-config libssl-dev llvm-19-dev libclang-19-dev libpolly-19-dev
+sudo apt install -y git curl cmake pkg-config libssl-dev llvm-19-dev libclang-19-dev libpolly-19-dev libelf-dev libpcap-dev
 
 # Install Rust using rustup.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -53,10 +56,10 @@ You can use git to clone the project.
 
 ```bash
 # Clone repository using Git
-git clone https://github.com/gamemann/xdpstats
+git clone https://github.com/gamemann/xdpstats-rs.git
 
 # Change to project directory.
-cd xdpstats
+cd xdpstats-rs
 ```
 
 You can then build and run the project using the following commands.
