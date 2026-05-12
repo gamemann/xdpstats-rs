@@ -1,4 +1,4 @@
-A tool that utilizes an awesome Rust library called [Aya](https://aya-rs.dev/book/) to deploy a simple XDP stats program. This tool increments counters for packets and bytes using a per CPU array map and displays the counters inside of the user-space program. There is a `matched` stat which is only incremented when packets arrive on UDP port [`TARGET_PORT`](https://github.com/gamemann/xdpstats/blob/main/xdpstats-common/src/config.rs#L4) (default: `8080`).
+A tool that utilizes an awesome Rust library called [Aya](https://aya-rs.dev/book/) to deploy a simple XDP stats program. This tool increments counters for packets and bytes using a per CPU array map and displays the counters inside of the user-space program. There is a `matched` stat which is only incremented when packets arrive on a configured protocol (`TARGET_PROTO`, default: `UDP`) and port (`TARGET_PORT`, default: `8080`).
 
 ![Preview](./images/preview.gif)
 
@@ -84,6 +84,36 @@ sudo ./install_to_path.sh
 sudo xdpstats -i enp1s0 -w -p
 ```
 
+### Features
+There are three features you may build the tool with: `afxdp`, `tx`, `tx_fib`.
+
+| Feature | Description |
+| ------- | ----------- |
+| `afxdp` | Forwards matched packets to AF_XDP sockets to calculate. |
+| `tx` | Sends the packet back out through the same interface and swaps the packet headers including ethernet addresses, IP addresses, and layer 4 ports. |
+| `tx_fib` | Instead of swapping ports when TX'ing the packet, performs a FIB (Forwarding Information Base) lookup to determine the next hop. |
+
+To build the tool, you may pass `F` or `--features` when running or building.
+
+For example:
+
+```bash
+# Build with AF_XDP support.
+cargo build --features afxdp
+
+# Build with TX support.
+cargo build --features tx
+
+# Build with TX_FIB support.
+cargo build --features tx,tx_fib
+
+# Build with AF_XDP and TX support.
+cargo build --features afxdp,tx
+
+# Build for release (AFXDP + TX).
+cargo build --release --features afxdp,tx
+```
+
 ## 📝 Command Line Options
 The following command line options are supported.
 
@@ -101,11 +131,11 @@ The following command line options are supported.
 | `-p --per-sec` | `false` | If set, displays stats in rate per second instead of total count. |
 | `-N --sec-name` | `xdp_stats` | The section name to use for the XDP program in the eBPF ELF file. This is only needed if you change the section name in the eBPF program. |
 
+### Additional Settings For `afxdp` Feature
 Here are settings for AF_XDP sockets.
 
 | Args | Default | Description |
 | ---- | ------- | ----------- |
-| `-a --afxdp` | - | If set, redirects packets to AF_XDP sockets and calculates counters there instead. |
 | `-n --num-socks` | `0` | The amount of AF_XDP sockets to create if using AF_XDP mode (0 = Auto). |
 | `-b --batch-size` | `64` | The batch size to use when polling AF_XDP sockets. |
 | `-r --rx-sz` | `2048` | The RX ring size to use for AF_XDP sockets. |
@@ -126,15 +156,32 @@ There are constants you may change in the [`xdpstats-common/src/config.rs`](http
 ```rust
 /* CONFIG OPTIONS */
 /* -------------------------------- */
-// The target UDP Port to match packets on.
+// The target protocol to match.
+// You may use IpProto::Tcp, IpProto::Icmp, etc.
+pub const TARGET_PROTOCOL: u8 = IpProto::Udp as u8;
+
+// The target port to match packets on.
+// Set this to 0 for no port matching.
 pub const TARGET_PORT: u16 = 8080;
 
 // The path to the ELF file to load with eBPF.
 // Relative to $OUT_DIR env var, but you shouldn't need to change this.
 pub const PATH_ELF_FILE: &str = "xdpstats";
+
+// Max CPUs supported by the program.
+pub const MAX_CPUS: usize = 256;
 /* -------------------------------- */
 /* CONFIG OPTIONS END */
 ```
+
+## 📌 Notes
+### Additional XDP Sections
+There are four additional XDP sections that may be loaded with the `-N --sec` argument.
+
+* `xdp_stats_pass_simple` - A simple XDP program that literally only returns `XDP_PASS`. This is useful for testing and debugging. This does not increment the per-CPU stats map. Therefore you'll be relying on packet counters from the NIC (usually accessible through `ethtool -S <iface>`).
+* `xdp_stats_drop_simple` - A simple XDP program that literally only returns `XDP_DROP`. This is useful for testing and debugging. This does not increment the per-CPU stats map. Therefore you'll be relying on packet counters from the NIC (usually accessible through `ethtool -S <iface>`).
+* `xdp_stats_pass_simple_stats` - Does what `xdp_stats_pass_simple` does, but also increments the `passed` stat for every packet.
+* `xdp_stats_drop_simple_stats` - Does what `xdp_stats_drop_simple` does, but also increments the `dropped` stat for every packet.
 
 ## ✍️ Credits
 * [Christian Deacon](https://github.com/gamemann)
